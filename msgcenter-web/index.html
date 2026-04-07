@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MsgCenter 消息中心控制台</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📨</text></svg>">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="header-brand">
+            <span class="header-icon">📨</span>
+            <h1>MsgCenter <span class="header-sub">消息中心控制台</span></h1>
+        </div>
+        <div class="header-status">
+            <span class="status-dot online" id="systemStatusDot"></span>
+            <span id="systemStatusText">系统正常</span>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 侧边栏 -->
+        <nav class="sidebar">
+            <ul class="nav-list">
+                <li class="nav-item active" data-tab="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>系统状态</span>
+                </li>
+                <li class="nav-item" data-tab="template">
+                    <span class="nav-icon">📝</span>
+                    <span>模板管理</span>
+                </li>
+                <li class="nav-item" data-tab="send">
+                    <span class="nav-icon">🚀</span>
+                    <span>发送消息</span>
+                </li>
+                <li class="nav-item" data-tab="record">
+                    <span class="nav-icon">📋</span>
+                    <span>发送记录</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- 内容区 -->
+        <main class="content">
+            <!-- 系统状态面板 -->
+            <section class="tab-panel active" id="panel-dashboard">
+                <div class="panel-header">
+                    <h2>📊 系统状态</h2>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="dash-card">
+                        <div class="dash-card-title">🏭 消息队列模式</div>
+                        <div class="dash-card-value" id="dash-mq-mode">—</div>
+                    </div>
+                    <div class="dash-card">
+                        <div class="dash-card-title">📦 Kafka Broker</div>
+                        <div class="dash-card-value" id="dash-kafka">—</div>
+                    </div>
+                    <div class="dash-card">
+                        <div class="dash-card-title">🗄️ 数据库</div>
+                        <div class="dash-card-value" id="dash-mysql">—</div>
+                    </div>
+                    <div class="dash-card">
+                        <div class="dash-card-title">💾 Redis 缓存</div>
+                        <div class="dash-card-value" id="dash-redis">—</div>
+                    </div>
+                    <div class="dash-card wide">
+                        <div class="dash-card-title">⚡ 渠道熔断状态</div>
+                        <div class="circuit-status" id="circuit-status">
+                            <div class="circuit-item" data-channel="1">
+                                <span class="channel-badge email">📧 Email</span>
+                                <span class="circuit-badge normal">正常</span>
+                            </div>
+                            <div class="circuit-item" data-channel="2">
+                                <span class="channel-badge sms">📱 SMS</span>
+                                <span class="circuit-badge normal">正常</span>
+                            </div>
+                            <div class="circuit-item" data-channel="3">
+                                <span class="channel-badge lark">🦜 Lark</span>
+                                <span class="circuit-badge normal">正常</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dash-card wide">
+                        <div class="dash-card-title">🔧 熔断配置</div>
+                        <div class="config-table" id="circuit-config">
+                            <div class="config-row">
+                                <span>失败阈值</span><span id="cfg-threshold">—</span>
+                            </div>
+                            <div class="config-row">
+                                <span>熔断时长</span><span id="cfg-open">—</span>
+                            </div>
+                            <div class="config-row">
+                                <span>降级链</span><span id="cfg-fallback">—</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-actions">
+                    <button class="btn btn-secondary" onclick="refreshDashboard()">🔄 刷新状态</button>
+                </div>
+            </section>
+
+            <!-- 模板管理面板 -->
+            <section class="tab-panel" id="panel-template">
+                <div class="panel-header">
+                    <h2>📝 模板管理</h2>
+                    <button class="btn btn-primary" onclick="showTemplateModal()">+ 新建模板</button>
+                </div>
+
+                <!-- 模板列表 -->
+                <div class="list-container">
+                    <div class="list-header">
+                        <span>模板列表</span>
+                        <input type="text" class="search-input" placeholder="搜索模板名称..." id="template-search" oninput="filterTemplates()">
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="template-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>模板名称</th>
+                                    <th>渠道</th>
+                                    <th>状态</th>
+                                    <th>内容预览</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="template-tbody">
+                                <tr class="empty-row">
+                                    <td colspan="6" class="empty-cell">
+                                        <div class="empty-state">
+                                            <span>📭</span>
+                                            <p>暂无模板</p>
+                                            <p class="empty-hint">点击上方「新建模板」创建一个</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 发送消息面板 -->
+            <section class="tab-panel" id="panel-send">
+                <div class="panel-header">
+                    <h2>🚀 发送消息</h2>
+                </div>
+                <div class="send-layout">
+                    <!-- 左侧：发送表单 -->
+                    <div class="send-form-panel">
+                        <form id="send-form" class="form-panel">
+                            <div class="form-section">
+                                <h3>选择模板</h3>
+                                <div class="form-group">
+                                    <label>消息来源标识 <span class="required">*</span></label>
+                                    <input type="text" id="send-sourceId" placeholder="例如: order-service, user-center" required>
+                                    <input type="hidden" id="send-templateId" value="">
+                                    <input type="hidden" id="send-template-select" value="">
+                                </div>
+                                <div class="form-group">
+                                    <label>选择模板 <span class="required">*</span></label>
+                                    <div id="send-template-list" style="max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:6px;padding:8px;">
+                                        <div style="color:#999;text-align:center;">加载中...</div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>模板内容预览</label>
+                                    <div class="template-preview" id="send-template-preview">
+                                        <span class="preview-hint">请选择模板</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>消息内容</h3>
+                                <div class="form-group">
+                                    <label>收件人/手机号 <span class="required">*</span></label>
+                                    <input type="text" id="send-to" placeholder="例如: user@example.com 或 13800138000" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>主题（邮件）/ 标题</label>
+                                    <input type="text" id="send-subject" placeholder="邮件主题或消息标题">
+                                </div>
+                                <div class="form-group">
+                                    <label>优先级</label>
+                                    <div class="radio-group">
+                                        <label class="radio-item">
+                                            <input type="radio" name="priority" value="1"> 低
+                                        </label>
+                                        <label class="radio-item">
+                                            <input type="radio" name="priority" value="2" checked> 中
+                                        </label>
+                                        <label class="radio-item">
+                                            <input type="radio" name="priority" value="3"> 高
+                                        </label>
+                                        <label class="radio-item">
+                                            <input type="radio" name="priority" value="4"> 重试
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>渠道覆盖</label>
+                                    <div class="radio-group">
+                                        <label class="radio-item">
+                                            <input type="radio" name="channel" value="0" checked> 使用模板默认
+                                        </label>
+                                        <label class="radio-item">
+                                            <input type="radio" name="channel" value="1"> 📧 Email
+                                        </label>
+                                        <label class="radio-item">
+                                            <input type="radio" name="channel" value="2"> 📱 SMS
+                                        </label>
+                                        <label class="radio-item">
+                                            <input type="radio" name="channel" value="3"> 🦜 Lark
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>模板参数 <span class="section-hint">（按 ${key} 中的 key 填写）</span></h3>
+                                <div id="param-fields">
+                                    <div class="param-hint">请先选择模板，参数字段将自动生成</div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>定时发送 <span class="section-hint">（留空则立即发送）</span></h3>
+                                <div class="form-group">
+                                    <label>发送时间</label>
+                                    <input type="datetime-local" id="send-timestamp">
+                                </div>
+                                <div class="form-group">
+                                    <label>时间戳（Unix ms）</label>
+                                    <input type="text" id="send-timestamp-ms" placeholder="或直接输入时间戳，例如：1744567890000">
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary btn-large">🚀 发送消息</button>
+                                <button type="button" class="btn btn-secondary" onclick="resetSendForm()">重置表单</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 右侧：发送历史 -->
+                    <div class="send-history-panel">
+                        <div class="history-header">
+                            <h3>📋 本次发送历史</h3>
+                            <button class="btn-text" onclick="clearSendHistory()">清空</button>
+                        </div>
+                        <div class="history-list" id="send-history-list">
+                            <div class="history-empty">暂无发送记录</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 发送记录面板 -->
+            <section class="tab-panel" id="panel-record">
+                <div class="panel-header">
+                    <h2>📋 发送记录查询</h2>
+                </div>
+                <div class="record-layout">
+                    <div class="record-query">
+                        <form id="record-form" class="query-form">
+                            <div class="query-input-group">
+                                <input type="text" id="record-msgId" placeholder="输入消息 ID（msgId）" required>
+                                <button type="submit" class="btn btn-primary">🔍 查询</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="record-result" id="record-result">
+                        <div class="record-empty">
+                            <span>🔎</span>
+                            <p>输入消息 ID 查询发送记录</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 模板创建/编辑弹窗 -->
+    <div class="modal-overlay" id="template-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="template-modal-title">新建模板</h3>
+                <button class="modal-close" onclick="closeTemplateModal()">×</button>
+            </div>
+            <form id="template-form" class="modal-form">
+                <input type="hidden" id="tmpl-id">
+                <div class="form-group">
+                    <label>模板名称 <span class="required">*</span></label>
+                    <input type="text" id="tmpl-name" placeholder="例如：订单确认通知" required>
+                </div>
+                <div class="form-group">
+                    <label>渠道 <span class="required">*</span></label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="tmpl-channel" value="1" checked> 📧 Email
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tmpl-channel" value="2"> 📱 SMS
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tmpl-channel" value="3"> 🦜 Lark
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>状态</label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="tmpl-status" value="1"> ⏳ 待审
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tmpl-status" value="2" checked> ✅ 正常
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>模板内容 <span class="required">*</span></label>
+                    <textarea id="tmpl-content" rows="6" placeholder="支持占位符，例如：您好 ${username}，您的订单 ${orderId} 已确认" required></textarea>
+                    <div class="form-hint">使用 ${key} 作为占位符，发送时会被替换为实际值</div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary" id="tmpl-submit-btn">💾 保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeTemplateModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
